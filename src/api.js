@@ -51,3 +51,4 @@ export function fetchRisk() {
 export function manualRun() {
   return fetchJSON("/run", { method: "POST" });
 }
+
