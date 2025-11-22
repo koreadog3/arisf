@@ -9,6 +9,7 @@ import Pagination from "./components/Pagination.jsx";
 import EmptyState from "./components/EmptyState.jsx";
 import RiskCharts from "./components/RiskCharts.jsx";
 import InfoModal from "./components/InfoModal.jsx";
+import MenuModal from "./components/MenuModal.jsx"; // ✅ 추가
 
 import { fetchEws, fetchRisk, manualRun } from "./api.js";
 
@@ -25,8 +26,8 @@ export default function App() {
   const [pageEws, setPageEws] = useState(1);
   const [pageRisk, setPageRisk] = useState(1);
 
-  // 도움말 모달
   const [infoOpen, setInfoOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // ✅ 추가
 
   async function loadAll({ showSpinner = true } = {}) {
     try {
@@ -42,14 +43,22 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
     if (tab === "ews") setPageEws(1);
     if (tab === "risk") setPageRisk(1);
   }, [tab]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await manualRun().catch(() => null);
+      await loadAll({ showSpinner: false });
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const ewsPaged = useMemo(() => {
     const start = (pageEws - 1) * PAGE_SIZE;
@@ -64,31 +73,24 @@ export default function App() {
   const totalPagesEws = Math.max(1, Math.ceil(ews.length / PAGE_SIZE));
   const totalPagesRisk = Math.max(1, Math.ceil(risk.length / PAGE_SIZE));
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      await manualRun().catch(() => null);
-      await loadAll({ showSpinner: false });
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   const list = tab === "ews" ? ewsPaged : riskPaged;
   const totalCount = tab === "ews" ? ews.length : risk.length;
 
   return (
     <div className="min-h-screen bg-bg text-white">
-      <TopBar onRefresh={handleRefresh} refreshing={refreshing} />
+      <TopBar
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        onOpenMenu={() => setMenuOpen(true)} // ✅ 추가
+      />
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-        {/* 탭 + 도움말 버튼 줄 */}
         <div className="flex items-center justify-between gap-3">
           <Tabs tab={tab} setTab={setTab} />
 
           <button
             onClick={() => setInfoOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-sm hover:bg-white/5 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-panel border border-line px-3 py-2 text-sm hover:bg-white/5 active:scale-[0.98]"
             aria-label="ARIS 사용방법"
           >
             <HelpCircle className="h-4 w-4" />
@@ -97,7 +99,7 @@ export default function App() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">
+          <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-4 text-sm text-red-200">
             불러오는 중 오류가 발생했습니다: {error}
           </div>
         )}
@@ -113,7 +115,6 @@ export default function App() {
           />
         ) : (
           <div className="space-y-3">
-            {/* RISK 탭일 때만 그래프 */}
             {tab === "risk" && risk.length > 0 && (
               <RiskCharts risk={risk} />
             )}
@@ -127,18 +128,14 @@ export default function App() {
                 page={pageEws}
                 totalPages={totalPagesEws}
                 onPrev={() => setPageEws((p) => Math.max(1, p - 1))}
-                onNext={() =>
-                  setPageEws((p) => Math.min(totalPagesEws, p + 1))
-                }
+                onNext={() => setPageEws((p) => Math.min(totalPagesEws, p + 1))}
               />
             ) : (
               <Pagination
                 page={pageRisk}
                 totalPages={totalPagesRisk}
                 onPrev={() => setPageRisk((p) => Math.max(1, p - 1))}
-                onNext={() =>
-                  setPageRisk((p) => Math.min(totalPagesRisk, p + 1))
-                }
+                onNext={() => setPageRisk((p) => Math.min(totalPagesRisk, p + 1))}
               />
             )}
           </div>
@@ -149,8 +146,14 @@ export default function App() {
         </footer>
       </main>
 
-      {/* 도움말 모달 */}
       <InfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
+
+      {/* ✅ 메뉴 모달 */}
+      <MenuModal
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onOpenHelp={() => setInfoOpen(true)}
+      />
     </div>
   );
 }
