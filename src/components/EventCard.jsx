@@ -1,5 +1,5 @@
 // src/components/EventCard.jsx
-import { ExternalLink, MapPin, SignalHigh, Globe2 } from "lucide-react";
+import { ExternalLink, MapPin, SignalHigh, Globe2, AlertTriangle } from "lucide-react";
 
 const signalNameKR = {
   military: "군사",
@@ -60,6 +60,8 @@ export default function EventCard({ mode, item }) {
   // -----------------------------
   if (mode === "ews") {
     const countries = safeJSON(item.countries, item.countries) || ["미상"];
+    const text = (item.summary || item.gtrans || "").trim();
+    const isBackup = !item.summary && item.gtrans;
 
     return (
       <article className="rounded-2xl bg-panel border border-line p-4 hover:border-white/20 transition">
@@ -99,28 +101,106 @@ export default function EventCard({ mode, item }) {
           ))}
         </div>
 
-        {/* AI 요약/번역 표시 */}
-        {item.summary && (
-          <p className="mt-3 text-sm leading-relaxed text-white/90 whitespace-pre-line">
-            {item.summary}
-          </p>
+        {text && (
+          <div className="mt-3 space-y-2">
+            {isBackup && (
+              <div className="inline-flex items-center gap-1 text-[11px] text-muted">
+                <AlertTriangle className="h-3 w-3" />
+                GPT 요약 실패 → 자동 번역(짧은 버전)
+              </div>
+            )}
+            <p className="text-sm leading-relaxed text-white/90 whitespace-pre-line">
+              {text}
+            </p>
+          </div>
         )}
       </article>
     );
   }
 
   // -----------------------------
-  // RISK 카드
+  // RISK 카드 (국가/시그널 강조)
   // -----------------------------
   const signals = safeJSON(item.signals, {});
   const sigEntries = Object.entries(signals || {}).filter(([, v]) => v > 0);
+  const keyText = item.key || "미상";
 
   return (
     <article className="rounded-2xl bg-panel border border-line p-4 hover:border-white/20 transition">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-bold leading-snug">
-          {item.title || "(제목 없음)"}
-        </h3>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-white/80" />
+            <h3 className="text-lg md:text-xl font-extrabold tracking-tight truncate">
+              {keyText}
+            </h3>
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span className="inline-flex items-center gap-1">
+              <Globe2 className="h-3 w-3" />
+              {domain || "source"}
+            </span>
+            <span>· {pub}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span
+            className={`text-xs px-2 py-1 rounded-lg border ${bandStyle(
+              item.band
+            )}`}
+          >
+            {item.band || "낮음"}
+          </span>
+          <span className="text-sm font-semibold">
+            점수 {Number(item.score || 0).toFixed(2)}
+          </span>
+          <div className="w-28 h-2 rounded-full bg-bg border border-line overflow-hidden">
+            <div
+              className="h-full bg-white/80"
+              style={{
+                width: `${Math.min(
+                  100,
+                  (Number(item.score || 0) / 10) * 100
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {sigEntries.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {sigEntries.map(([k, v]) => (
+            <span
+              key={k}
+              className="text-sm px-3 py-1.5 rounded-xl bg-bg border border-line inline-flex items-center gap-1"
+              title={k}
+            >
+              <SignalHigh className="h-4 w-4" />
+              {signalNameKR[k] || k}:{v}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-start justify-between gap-3">
+        {link ? (
+          <a
+            href={link}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-white/80 hover:text-white leading-snug"
+          >
+            {item.title || "(제목 없음)"}
+          </a>
+        ) : (
+          <p className="text-sm text-white/80 leading-snug">
+            {item.title || "(제목 없음)"}
+          </p>
+        )}
+
         {link && (
           <a
             href={link}
@@ -133,55 +213,6 @@ export default function EventCard({ mode, item }) {
           </a>
         )}
       </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-        <span className="inline-flex items-center gap-1">
-          <Globe2 className="h-3 w-3" />
-          {domain || "source"}
-        </span>
-        <span>· {pub}</span>
-        {item.key && (
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            {item.key}
-          </span>
-        )}
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <span className={`text-xs px-2 py-1 rounded-lg border ${bandStyle(item.band)}`}>
-          {item.band || "낮음"}
-        </span>
-        <span className="text-sm font-semibold">
-          점수 {Number(item.score || 0).toFixed(2)}
-        </span>
-        <div className="ml-auto w-28 h-2 rounded-full bg-bg border border-line overflow-hidden">
-          <div
-            className="h-full bg-white/80"
-            style={{
-              width: `${Math.min(
-                100,
-                (Number(item.score || 0) / 10) * 100
-              )}%`,
-            }}
-          />
-        </div>
-      </div>
-
-      {sigEntries.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {sigEntries.map(([k, v]) => (
-            <span
-              key={k}
-              className="text-xs px-2 py-1 rounded-lg bg-bg border border-line inline-flex items-center gap-1"
-              title={k}
-            >
-              <SignalHigh className="h-3 w-3" />
-              {signalNameKR[k] || k}:{v}
-            </span>
-          ))}
-        </div>
-      )}
     </article>
   );
 }
